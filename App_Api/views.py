@@ -1,4 +1,8 @@
+from pickle import NONE
 from django.shortcuts import render
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from rest_framework.parsers import JSONParser
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, BasePermission
@@ -9,9 +13,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import TokenAuthentication
 
-from .serializers import UserSerializer
+from rest_framework import status
 
-from App_Login.models import User
+from .serializers import ProductSerializer, WeatherSerializer
+
+from App_Api.models import Product, Weather
+
+# from App_Api import serializers
 
 
 class CustomPermission(BasePermission):
@@ -21,13 +29,128 @@ class CustomPermission(BasePermission):
             return True
         else:
             return False
-    
 
 
-@api_view(['GET'])
-def productList(request):
-	authentication_classes = [JWTAuthentication, TokenAuthentication] 
-	permission_classes = [IsAuthenticated, CustomPermission]
-	user = User.objects.all().order_by('-id')
-	serializer = UserSerializer(user, many=True)
-	return Response(serializer.data)
+@csrf_exempt
+def product(request):
+    if request.method == "GET":
+        product = Product.objects.all()
+        serailizer = ProductSerializer(product, many=True)
+        return JsonResponse(serailizer.data, safe=False)
+
+    elif request.method == "POST":
+        json_parser = JSONParser()
+        data = json_parser.parse(request)
+        serializer = ProductSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            # return JsonResponse(serializer.data, status=201)
+            return JsonResponse({
+                "Message": "Product added successfully",
+                
+                "Product": serializer.data}, status=status.HTTP_201_CREATED
+                )
+
+        return JsonResponse({"Errors": "sorry product is not added!"}, status=status.HTTP_400_BAD_REQUEST)
+
+@csrf_exempt
+def product_details(request, id):
+    try:
+        instance = Product.objects.get(id=id)
+    except Product.DoesNotExist as e:
+        return JsonResponse( {"error": "Given Product object not found."}, status=404)
+
+    if request.method == "GET":
+        serailizer = ProductSerializer(instance)
+        return JsonResponse(serailizer.data)
+
+    elif request.method == "PUT":
+        json_parser = JSONParser()
+        data = json_parser.parse(request)
+        serializer = ProductSerializer(instance, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            # return JsonResponse(serializer.data, status=200)
+            return JsonResponse({
+                "Message": "Product updated successfully",
+                
+                "Product": serializer.data}, status=status.HTTP_201_CREATED
+                )
+
+        return JsonResponse({"Errors": "sorry product has not updated!"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    elif request.method == "DELETE":
+        instance.delete()
+        # return HttpResponse(status=204)
+        return JsonResponse({
+            "Message": "Product Deleted successfully"}, status=204
+            )
+
+@csrf_exempt
+def product_list_weather(request,slug):
+    slug = slug.capitalize()
+    try:
+        instance = Weather.objects.get(title=slug)
+    except Weather.DoesNotExist as e:
+        return JsonResponse( {"error": "Given Weather object not found."}, status=404)
+
+    if request.method == "GET":
+        weather_product = Product.objects.filter(weather_type=instance.id)
+        serailizer = ProductSerializer(weather_product, many=True)
+        return JsonResponse(serailizer.data, safe=False)
+        
+@csrf_exempt
+def weather(request):
+    if request.method == "GET":
+        weather = Weather.objects.all()
+        serailizer = WeatherSerializer(weather, many=True)
+        return JsonResponse(serailizer.data, safe=False)
+
+    elif request.method == "POST":
+        json_parser = JSONParser()
+        data = json_parser.parse(request)
+        serializer = WeatherSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse({
+                "Message": "Weather added successfully",
+                
+                "Product": serializer.data}, status=status.HTTP_201_CREATED
+                )
+
+        return JsonResponse({"Errors": "sorry weather is not added!"}, status=status.HTTP_400_BAD_REQUEST)
+
+@csrf_exempt
+def weather_details(request, slug):
+    slug = slug.capitalize()
+    try:
+        instance = Weather.objects.get(title=slug)
+    except Weather.DoesNotExist as e:
+        return JsonResponse( {"error": "Given Weather object not found."}, status=404)
+
+    if request.method == "GET":
+        serailizer = WeatherSerializer(instance)
+        return JsonResponse(serailizer.data)
+
+    elif request.method == "PUT":
+        json_parser = JSONParser()
+        data = json_parser.parse(request)
+        serializer = WeatherSerializer(instance, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            # return JsonResponse(serializer.data, status=200)
+            return JsonResponse({
+                "Message": "Weather updated successfully",
+                
+                "Product": serializer.data}, status=status.HTTP_201_CREATED
+                )
+
+        return JsonResponse({"Errors": "sorry weather is not updated!"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    elif request.method == "DELETE":
+        instance.delete()
+        return JsonResponse({
+            "Message": "Weather Deleted successfully"}, status=204
+            )

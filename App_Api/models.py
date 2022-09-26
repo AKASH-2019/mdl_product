@@ -1,3 +1,4 @@
+from typing_extensions import Required
 from django.db import models
 
 class Weather(models.Model):
@@ -12,6 +13,7 @@ class Product(models.Model):
     weather_type = models.ForeignKey(Weather, on_delete=models.CASCADE, related_name='wetherType')
     # preview_text = models.TextField(max_length=200, verbose_name='Preview Text')
     detail_text = models.TextField(max_length=1000, verbose_name='Description')
+    quantity = models.IntegerField(default=0, null=False, blank=False)
     price = models.FloatField()
     old_price = models.FloatField(default=0.00)
     created = models.DateTimeField(auto_now_add=True)
