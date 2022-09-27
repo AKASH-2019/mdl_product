@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, BasePermission
 # from rest_framework import permissions
 
+from rest_framework.decorators import permission_classes, authentication_classes
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -18,22 +19,63 @@ from urllib.request import urlopen
 import requests
 import json
 
-from .serializers import ProductSerializer, WeatherSerializer
+from .serializers import ProductSerializer, WeatherSerializer, ProductInsertSerializer
 
 from App_Api.models import Product, Weather
 
-# from App_Api import serializers
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
 
+        # Add custom claims
+        token['email'] = user.email
+        # ...
 
-class CustomPermission(BasePermission):
+        return token
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+class AdminPermission(BasePermission):
     def has_permission(self, request, view):
 		
         if request.user.role_id == 999:
             return True
         else:
             return False
+class VendorPermission(BasePermission):
+    def has_permission(self, request, view):
+		
+        if request.user.role_id == 88:
+            return True
+        else:
+            return False
+class CustomerPermission(BasePermission):
+    def has_permission(self, request, view):
+		
+        if request.user.role_id == 3:
+            return True
+        else:
+            return False
+class VendorAndAdminPermission(BasePermission):
+    def has_permission(self, request, view):
+		
+        if request.user.role_id == 88 or request.user.role_id == 999:
+            return True
+        else:
+            return False
+class CustomerAndAdminPermission(BasePermission):
+    def has_permission(self, request, view):
+		
+        if request.user.role_id == 3 or request.user.role_id == 999:
+            return True
+        else:
+            return False       
 
-
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated, CustomerPermission])
 def home(request):
     api_key = 'a826261c9ed6ee2652bc1f92e2f0c9ca'
     if request.method == "GET":
@@ -65,16 +107,22 @@ def home(request):
             return JsonResponse(serailizer.data, safe=False)
 
 @csrf_exempt
+@api_view(['GET'])
 def product(request):
     if request.method == "GET":
         product = Product.objects.all()
         serailizer = ProductSerializer(product, many=True)
         return JsonResponse(serailizer.data, safe=False)
 
-    elif request.method == "POST":
+@csrf_exempt
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated, VendorAndAdminPermission])
+def productCreate(request):
+    if request.method == "POST":
         json_parser = JSONParser()
         data = json_parser.parse(request)
-        serializer = ProductSerializer(data=data)
+        serializer = ProductInsertSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             # return JsonResponse(serializer.data, status=201)
@@ -86,7 +134,11 @@ def product(request):
 
         return JsonResponse({"Errors": "sorry product is not added!"}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @csrf_exempt
+@api_view(['GET','PUT','DELETE'])
+@authentication_classes([JWTAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated, VendorAndAdminPermission])
 def product_details(request, id):
     try:
         instance = Product.objects.get(id=id)
@@ -100,7 +152,7 @@ def product_details(request, id):
     elif request.method == "PUT":
         json_parser = JSONParser()
         data = json_parser.parse(request)
-        serializer = ProductSerializer(instance, data=data, partial=True)
+        serializer = ProductInsertSerializer(instance, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             # return JsonResponse(serializer.data, status=200)
@@ -120,7 +172,9 @@ def product_details(request, id):
             "Message": "Product Deleted successfully"}, status=204
             )
 
-
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated, CustomerPermission])
 def product_search_title(request, slug):
     print("search title")
     try:
@@ -134,7 +188,10 @@ def product_search_title(request, slug):
         serailizer = ProductSerializer(result, many=True)
         return JsonResponse(serailizer.data, safe=False)
 
-@csrf_exempt
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated, CustomerAndAdminPermission])
 def product_list_weather(request,slug):
     slug = slug.capitalize()
     try:
@@ -148,6 +205,9 @@ def product_list_weather(request,slug):
         return JsonResponse(serailizer.data, safe=False)
         
 @csrf_exempt
+@api_view(['GET','POST'])
+@authentication_classes([JWTAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminPermission])
 def weather(request):
     if request.method == "GET":
         weather = Weather.objects.all()
@@ -169,6 +229,9 @@ def weather(request):
         return JsonResponse({"Errors": "sorry weather is not added!"}, status=status.HTTP_400_BAD_REQUEST)
 
 @csrf_exempt
+@api_view(['GET','PUT','DELETE'])
+@authentication_classes([JWTAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated, AdminPermission])
 def weather_details(request, slug):
     slug = slug.capitalize()
     try:

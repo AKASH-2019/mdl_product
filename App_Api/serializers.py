@@ -7,6 +7,11 @@ class WeatherSerializer(serializers.ModelSerializer):
 		model = Weather
 		fields ='__all__'
 
+class ProductInsertSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = Product
+		fields ='__all__'
+
 class ProductSerializer(serializers.ModelSerializer):
 	print("ddd")
 	weather_type = WeatherSerializer(many=False)
@@ -17,11 +22,6 @@ class ProductSerializer(serializers.ModelSerializer):
 			"id",
 			"name",
 			"price",
+			"quantity",
 			"weather_type"
 		]
-	# def create(self, validated_data):
-	# 	if "id" in validated_data.keys():
-	# 		print("id exist")
-	# 		return 
-	# 	product = Product.objects.create(**validated_data)
-	# 	return product

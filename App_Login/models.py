@@ -17,7 +17,6 @@ class MyUserManager(BaseUserManager):
         """
         create and save a user with a given user and password
         """
-
         if not email:
             raise ValueError("The email must be set!!")
         email = self.normalize_email(email)
