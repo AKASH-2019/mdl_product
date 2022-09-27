@@ -23,6 +23,7 @@
 
 ## vendors (role_id = 88)
    1. CRUD products with the quantity of the product.
+    
     Create(POST): http://127.0.0.1:8000/mdl/product/create
     json -> {
                 "name": "Product10",
