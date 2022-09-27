@@ -12,11 +12,10 @@ class ProductSerializer(serializers.ModelSerializer):
 	weather_type = WeatherSerializer(many=False)
 	class Meta:
 		model = Product
-		fields ='__all__'
+		# fields ='__all__'
 		fields = [
 			"id",
 			"name",
-			# "weather_type",
 			"price",
 			"weather_type"
 		]

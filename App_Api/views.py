@@ -12,8 +12,11 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import TokenAuthentication
-
 from rest_framework import status
+
+from urllib.request import urlopen
+import requests
+import json
 
 from .serializers import ProductSerializer, WeatherSerializer
 
@@ -30,6 +33,36 @@ class CustomPermission(BasePermission):
         else:
             return False
 
+
+def home(request):
+    api_key = 'a826261c9ed6ee2652bc1f92e2f0c9ca'
+    if request.method == "GET":
+        url = 'http://ipinfo.io/json'
+        res = urlopen(url)
+        data = json.load(res)
+        loc = data["city"]
+        if(loc == 'Chattogram'):
+            city ='Chittagong'
+        weather_data = requests.get(
+            f"https://api.openweathermap.org/data/2.5/weather?q={city}&units=imperial&APPID={api_key}")
+        # weather_data = requests.get(f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}")
+        print(weather_data.json())
+        if weather_data.json()['cod'] == '404':
+            print("No City Found")
+        else:
+            temp = round(weather_data.json()['main']['temp'])
+            ctemp = ((temp-32)*5/9)
+            print(ctemp)
+            weather = Weather.objects.all()
+            own_weather = 2  # normal
+            for w in weather:
+                if(ctemp >= w.low_range and ctemp <= w.high_range ):
+                    own_weather = w.id
+                    break
+            print(own_weather)
+            weather_product = Product.objects.filter(weather_type=own_weather)
+            serailizer = ProductSerializer(weather_product, many=True)
+            return JsonResponse(serailizer.data, safe=False)
 
 @csrf_exempt
 def product(request):
@@ -86,6 +119,20 @@ def product_details(request, id):
         return JsonResponse({
             "Message": "Product Deleted successfully"}, status=204
             )
+
+
+def product_search_title(request, slug):
+    print("search title")
+    try:
+        # instance = Product.objects.get(id=id)
+        result = Product.objects.filter(name__icontains=slug)
+        print(result)
+    except Product.DoesNotExist as e:
+        return JsonResponse( {"error": "Given Product object not found."}, status=404)
+
+    if request.method == "GET":
+        serailizer = ProductSerializer(result, many=True)
+        return JsonResponse(serailizer.data, safe=False)
 
 @csrf_exempt
 def product_list_weather(request,slug):
